@@ -19,14 +19,14 @@ public class AsistenciaController {
     @Autowired
     private AsistenciaService asistenciaService;
 
-    @PostMapping("/asistencia/registrar")
+    @PostMapping("/asistencia/cliente/registrar")
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
-    public ResponseEntity<String> registrarAsistenciaDesdeQR(@RequestParam Integer idInscripcion) {
+    public ResponseEntity<String> registrarAsistenciaPorDNI(@RequestParam String dni) {
         try {
-            asistenciaService.registrarAsistenciaPorInscripcion(idInscripcion);
+            asistenciaService.registrarAsistenciaPorDNI(dni);
             return ResponseEntity.ok("✅ Asistencia registrada correctamente.");
-        } catch (InscripcionService.BusinessException e) {
-            // Capturar errores de negocio: inscripción inválida, fechas caducadas, etc.
+        } catch (RuntimeException e) {
+            // Capturar errores de negocio: cliente no encontrado, inscripción inválida, etc.
             return ResponseEntity.badRequest().body("❌ " + e.getMessage());
         } catch (Exception e) {
             // Errores inesperados
@@ -34,7 +34,7 @@ public class AsistenciaController {
         }
     }
 
-    @GetMapping("/listar")
+    @GetMapping("/asistencia/cliente/listar")
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
     public List<AsistenciaClienteDTO> listarAsistencias() {
         return asistenciaService.listarAsistencias();

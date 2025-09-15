@@ -42,13 +42,11 @@ public class PersonaController {
     }
 
     @GetMapping("/buscar/dni/{dni}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
     public ResponseEntity<?> buscarPorDni(@PathVariable String dni) {
         return personaService.buscarPorDni(dni);
     }
 
     @GetMapping("/buscar/correo/{correo}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
     public ResponseEntity<?> buscarPorCorreo(@PathVariable String correo) {
         return personaService.buscarPorCorreo(correo);
     }

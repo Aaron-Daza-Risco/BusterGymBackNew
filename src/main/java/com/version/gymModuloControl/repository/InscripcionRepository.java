@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import com.version.gymModuloControl.model.Cliente;
 import com.version.gymModuloControl.model.EstadoInscripcion;
 import com.version.gymModuloControl.model.Inscripcion;
 
@@ -24,6 +25,8 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Intege
 
     List<Inscripcion> findByClienteIdClienteAndEstadoIn(Integer idCliente, List<String> estados);
     List<Inscripcion> findByPlanIdPlanAndEstado(Integer idPlan, EstadoInscripcion estado);
+    
+    List<Inscripcion> findByClienteAndEstado(Cliente cliente, EstadoInscripcion estado);
 
 
     

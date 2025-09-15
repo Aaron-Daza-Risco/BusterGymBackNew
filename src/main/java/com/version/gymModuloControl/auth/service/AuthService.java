@@ -47,7 +47,6 @@ import com.version.gymModuloControl.repository.RolRepository;
 import com.version.gymModuloControl.repository.UsuarioRepository;
 import com.version.gymModuloControl.repository.UsuarioRolRepository;
 
-
 @Service
 public class AuthService {
 
@@ -155,37 +154,41 @@ public class AuthService {
                     ", Nombre=" + request.getNombre() +
                     " " + request.getApellidos());
 
-            // Verificar si existe el usuario
-            if (usuarioRepository.findByNombreUsuario(request.getNombreUsuario()).isPresent()) {
-                System.out.println("Error: El nombre de usuario ya existe: " + request.getNombreUsuario());
-                return ResponseEntity.badRequest().body("Error: El nombre de usuario ya existe.");
+            // 1. Crear Usuario (solo para recepcionistas)
+            Usuario usuario = null;
+            if ("RECEPCIONISTA".equals(request.getRol())) {
+                // Validaciones específicas para recepcionistas
+                if (request.getNombreUsuario() == null || request.getContrasena() == null) {
+                    return ResponseEntity.badRequest()
+                            .body("Error: Nombre de usuario y contraseña son requeridos para recepcionistas.");
+                }
+
+                // Verificar si existe el usuario
+                if (usuarioRepository.findByNombreUsuario(request.getNombreUsuario()).isPresent()) {
+                    System.out.println("Error: El nombre de usuario ya existe: " + request.getNombreUsuario());
+                    return ResponseEntity.badRequest().body("Error: El nombre de usuario ya existe.");
+                }
+
+                // Validar longitud mínima de contraseña
+                if (request.getContrasena().length() < 6) {
+                    return ResponseEntity.badRequest()
+                            .body("Error: La contraseña debe tener al menos 6 caracteres.");
+                }
+
+                usuario = new Usuario();
+                usuario.setNombreUsuario(request.getNombreUsuario());
+
+                // Encriptar contraseña
+                String passwordEncriptada = passwordEncoder.encode(request.getContrasena());
+                usuario.setContrasena(passwordEncriptada);
+                usuario.setEstado(true);
+                usuarioRepository.save(usuario);
             }
-
-            // Validar longitud mínima de contraseña
-            if (request.getContrasena().length() < 6) {
-                return ResponseEntity.badRequest()
-                        .body("Error: La contraseña debe tener al menos 6 caracteres.");
-            }
-
-            // 1. Crear Usuario
-            Usuario usuario = new Usuario();
-            usuario.setNombreUsuario(request.getNombreUsuario());
-
-            // Encriptar contraseña
-            String passwordEncriptada = passwordEncoder.encode(request.getContrasena());
-            usuario.setContrasena(passwordEncriptada);
-            usuario.setEstado(true);
-            usuarioRepository.save(usuario);
 
             // 2. Asignar Rol
             String rolSolicitado = request.getRol().toUpperCase();
             Rol rol = rolRepository.findByNombre(rolSolicitado)
                     .orElseThrow(() -> new RuntimeException("Rol no encontrado"));
-
-            UsuarioRol usuarioRol = new UsuarioRol();
-            usuarioRol.setUsuario(usuario);
-            usuarioRol.setRol(rol);
-            usuarioRolRepository.save(usuarioRol);
 
             // 3. Crear Persona
             Persona persona = new Persona();
@@ -196,7 +199,17 @@ public class AuthService {
             persona.setDni(request.getDni());
             persona.setCelular(request.getCelular());
             persona.setFechaNacimiento(request.getFechaNacimiento());
-            persona.setUsuario(usuario);
+            
+            // Solo asignar usuario si es recepcionista
+            if (usuario != null) {
+                persona.setUsuario(usuario);
+                // Crear UsuarioRol solo para recepcionistas
+                UsuarioRol usuarioRol = new UsuarioRol();
+                usuarioRol.setUsuario(usuario);
+                usuarioRol.setRol(rol);
+                usuarioRolRepository.save(usuarioRol);
+            }
+            
             personaRepository.save(persona);
 
             if (rolSolicitado.equals("CLIENTE")) {
@@ -230,14 +243,16 @@ public class AuthService {
                 clienteEmpleado.setFechaRegistro(LocalDate.now());
                 clienteRepository.save(clienteEmpleado);
 
-                // Asignar también el rol de cliente al usuario
-                Rol rolCliente = rolRepository.findByNombre("CLIENTE")
-                        .orElseThrow(() -> new RuntimeException("Rol CLIENTE no encontrado"));
+                // Asignar también el rol de cliente al usuario solo si es recepcionista
+                if (usuario != null) {
+                    Rol rolCliente = rolRepository.findByNombre("CLIENTE")
+                            .orElseThrow(() -> new RuntimeException("Rol CLIENTE no encontrado"));
 
-                UsuarioRol usuarioRolCliente = new UsuarioRol();
-                usuarioRolCliente.setUsuario(usuario);
-                usuarioRolCliente.setRol(rolCliente);
-                usuarioRolRepository.save(usuarioRolCliente);
+                    UsuarioRol usuarioRolCliente = new UsuarioRol();
+                    usuarioRolCliente.setUsuario(usuario);
+                    usuarioRolCliente.setRol(rolCliente);
+                    usuarioRolRepository.save(usuarioRolCliente);
+                }
 
                 System.out.println("Cuenta de cliente creada automáticamente para el empleado: " +
                         persona.getNombre() + " " + persona.getApellidos());
@@ -270,8 +285,10 @@ public class AuthService {
             }
 
             Map<String, Object> response = new HashMap<>();
-            response.put("mensaje", "Usuario registrado exitosamente");
-            response.put("usuarioId", usuario.getId());
+            response.put("mensaje", "Registro exitoso");
+            if (usuario != null) {
+                response.put("usuarioId", usuario.getId());
+            }
 
             System.out.println("======= FIN PROCESO REGISTRO EXITOSO =======");
             return ResponseEntity.ok(response);

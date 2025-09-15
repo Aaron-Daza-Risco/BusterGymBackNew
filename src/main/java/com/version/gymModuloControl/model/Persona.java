@@ -36,7 +36,7 @@ public class Persona {
     private String celular;
 
     @OneToOne
-    @JoinColumn(name = "usuario_id", nullable = false)
+    @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 }
 

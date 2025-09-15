@@ -3,7 +3,9 @@ package com.version.gymModuloControl.service;
 import com.version.gymModuloControl.dto.AsistenciaClienteDTO;
 import com.version.gymModuloControl.model.*;
 import com.version.gymModuloControl.repository.AsistenciaRepository;
+import com.version.gymModuloControl.repository.ClienteRepository;
 import com.version.gymModuloControl.repository.InscripcionRepository;
+import com.version.gymModuloControl.repository.PersonaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,12 @@ public class AsistenciaService {
 
     @Autowired
     private AsistenciaRepository asistenciaRepository;
+    
+    @Autowired
+    private PersonaRepository personaRepository;
+    
+    @Autowired
+    private ClienteRepository clienteRepository;
 
     private static final Logger log = LoggerFactory.getLogger(AsistenciaService.class);
 
@@ -64,6 +72,49 @@ public class AsistenciaService {
         if (!esValida) {
             throw new RuntimeException("❌ La inscripción está vencida o no está activa. Asistencia marcada como INVÁLIDA.");
         }
+    }
+
+    @Transactional
+    public void registrarAsistenciaPorDNI(String dni) {
+        // 1. Buscar persona por DNI
+        Persona persona = personaRepository.findByDni(dni)
+                .orElseThrow(() -> new RuntimeException("No se encontró ningún cliente con el DNI proporcionado."));
+
+        // 2. Buscar cliente asociado a la persona
+        Cliente cliente = clienteRepository.findByPersona(persona)
+            .orElseThrow(() -> new RuntimeException("La persona con DNI " + dni + " no es un cliente."));
+
+        // 3. Buscar inscripción activa del cliente
+        LocalDate hoy = LocalDate.now();
+        Inscripcion inscripcionActiva = inscripcionRepository.findByClienteAndEstado(cliente, EstadoInscripcion.ACTIVO)
+                .stream()
+                .filter(i -> !hoy.isBefore(i.getFechaInicio()) && !hoy.isAfter(i.getFechaFin()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("El cliente no tiene una inscripción activa."));
+
+        // 4. Verificar si ya registró asistencia hoy
+        if (asistenciaRepository.existsByClienteAndFecha(cliente, hoy)) {
+            throw new RuntimeException("El cliente ya registró su asistencia el día de hoy.");
+        }
+
+        // 5. Crear y guardar la asistencia
+        Asistencia asistencia = new Asistencia();
+        asistencia.setCliente(cliente);
+        asistencia.setFecha(hoy);
+        asistencia.setHora(LocalTime.now());
+        asistencia.setEstado(true);
+
+        // 6. Determinar turno
+        LocalTime ahora = LocalTime.now();
+        if (ahora.isBefore(LocalTime.NOON)) {
+            asistencia.setTurno(Turno.Mañana);
+        } else if (ahora.isBefore(LocalTime.of(18, 0))) {
+            asistencia.setTurno(Turno.Tarde);
+        } else {
+            asistencia.setTurno(Turno.Noche);
+        }
+
+        asistenciaRepository.save(asistencia);
     }
 
     public List<AsistenciaClienteDTO> listarAsistencias() {
