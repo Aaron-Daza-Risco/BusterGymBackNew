@@ -3,6 +3,8 @@ package com.version.gymModuloControl.repository;
 import java.util.List;
 import java.util.Optional;
 
+import com.version.gymModuloControl.model.EstadoInscripcion;
+import com.version.gymModuloControl.model.Inscripcion;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.version.gymModuloControl.model.Cliente;

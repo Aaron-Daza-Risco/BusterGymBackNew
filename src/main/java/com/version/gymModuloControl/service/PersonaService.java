@@ -30,8 +30,7 @@ public class PersonaService {
     private ClienteRepository clienteRepository;
     @Autowired
     private EmpleadoRepository empleadoRepository;
-    @Autowired
-    private EmailService emailService;
+
 
     // Métodos de búsqueda y consulta
     public ResponseEntity<?> buscarPersonaPorId(Integer id) {

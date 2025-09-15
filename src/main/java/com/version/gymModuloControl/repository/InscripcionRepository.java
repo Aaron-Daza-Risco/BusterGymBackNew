@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import com.version.gymModuloControl.model.Cliente;
 import com.version.gymModuloControl.model.EstadoInscripcion;
 import com.version.gymModuloControl.model.Inscripcion;
+import org.springframework.data.repository.query.Param;
 
 public interface InscripcionRepository extends JpaRepository<Inscripcion, Integer> {
     // Cambiar esto
@@ -84,6 +85,12 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Intege
         LIMIT 10
         """, nativeQuery = true)
     List<Map<String, Object>> getUltimasInscripciones();
+
+    @Query("SELECT i FROM Inscripcion i WHERE i.cliente.idCliente = :idCliente AND i.estado = :estado")
+    List<Inscripcion> findByClienteIdClienteAndEstado(
+            @Param("idCliente") Integer idCliente,
+            @Param("estado") EstadoInscripcion estado
+    );
 
 }
 

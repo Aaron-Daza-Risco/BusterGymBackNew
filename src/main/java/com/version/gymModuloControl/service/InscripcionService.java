@@ -54,9 +54,6 @@ public class InscripcionService {
     private DetalleInscripcionRepository detalleInscripcionRepository;
 
     @Autowired
-    private EmailService emailService;
-
-    @Autowired
     private AsistenciaRepository asistenciaRepository;
 
     private static final Logger log = LoggerFactory.getLogger(InscripcionService.class);
@@ -107,19 +104,23 @@ public class InscripcionService {
         Cliente cliente = clienteRepository.findById(request.getIdCliente())
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado con ID: " + request.getIdCliente()));
 
-        // 2.1 Validar inscripción activa o cancelada
-        Optional<Inscripcion> ultimaInscripcionOpt = inscripcionRepository
-                .findTopByClienteIdClienteOrderByFechaInscripcionDesc(request.getIdCliente());
+// 2.1 Validar inscripciones activas del cliente
+        // 2.1 Validar inscripciones activas del cliente
+        List<Inscripcion> inscripcionesActivas = inscripcionRepository
+                .findByClienteIdClienteAndEstado(request.getIdCliente(), EstadoInscripcion.ACTIVO);
 
-        if (ultimaInscripcionOpt.isPresent()) {
-            Inscripcion ultimaInscripcion = ultimaInscripcionOpt.get();
-            if (!ultimaInscripcion.getEstado().equals(EstadoInscripcion.CANCELADO)) {
-                if (ultimaInscripcion.getFechaFin().isAfter(LocalDate.now()) && ultimaInscripcion.getEstado().equals(EstadoInscripcion.ACTIVO)) {
-                    throw new BusinessException("El cliente ya tiene una inscripción activa que finaliza el " + ultimaInscripcion.getFechaFin());
-                }
-            }
-            // Si está cancelada, permite la inscripción
+        // Agregar logs de depuración
+        log.info("Cliente ID: {}", request.getIdCliente());
+        log.info("Estado buscado: {}", EstadoInscripcion.ACTIVO);
+        log.info("Inscripciones encontradas: {}", inscripcionesActivas.size());
+        inscripcionesActivas.forEach(i -> log.info("Inscripción ID: {}, Estado: {}", i.getIdInscripcion(), i.getEstado()));
+
+        // Validar inscripciones activas
+        if (!inscripcionesActivas.isEmpty()) {
+            throw new BusinessException("El cliente ya tiene una inscripción activa. " +
+                    "No se puede registrar una nueva inscripción hasta que la actual finalice o se cancele.");
         }
+
 
         // 3. Buscar plan
         Plan plan = planRepository.findById(request.getIdPlan())
@@ -202,34 +203,9 @@ public class InscripcionService {
             empleadoRepository.save(instructor);
         }
 
-        try {
-            String correoCliente = cliente.getPersona().getCorreo();
-            String nombreCompleto = cliente.getPersona().getNombre() + " " + cliente.getPersona().getApellidos();
-
-            String asunto = "Confirmación de Inscripción - GYM APP";
-            String cuerpo = "¡Hola " + nombreCompleto + "!\n\n" +
-                    "Tu inscripción ha sido registrada exitosamente.\n\n" +
-                    "Detalles de tu inscripción:\n" +
-                    "📝 ID Inscripción: " + inscripcion.getIdInscripcion() + "\n" +
-                    "📅 Fecha Inicio: " + inscripcion.getFechaInicio() + "\n" +
-                    "📅 Fecha Fin: " + inscripcion.getFechaFin() + "\n" +
-                    "🏋️ Plan: " + plan.getNombre() + "\n\n" +
-                    "¡Bienvenido a nuestro gimnasio!";
-
-            emailService.sendEmailWithQR(correoCliente, asunto, cuerpo);
-
-        } catch (Exception e) {
-            throw new RuntimeException("No se pudo enviar el correo de confirmación: " + e.getMessage());
-        }
-
-
         // 10. Devolver respuesta
         return mapToResponseDTO(inscripcion, instructor, horariosInstructor);
-
-
     }
-
-
 
     private void validarTipoInstructorVsPlan(Empleado instructor, Plan plan) {
         String tipoInstructor = instructor.getTipoInstructor().name();
