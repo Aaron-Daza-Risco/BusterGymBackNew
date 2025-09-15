@@ -54,9 +54,6 @@ public class InscripcionService {
     private DetalleInscripcionRepository detalleInscripcionRepository;
 
     @Autowired
-    private QRService qrService;
-
-    @Autowired
     private EmailService emailService;
 
     @Autowired
@@ -209,33 +206,21 @@ public class InscripcionService {
             String correoCliente = cliente.getPersona().getCorreo();
             String nombreCompleto = cliente.getPersona().getNombre() + " " + cliente.getPersona().getApellidos();
 
-            // Supongamos que ya tienes la inscripción guardada y su ID disponible
+            String asunto = "Confirmación de Inscripción - GYM APP";
+            String cuerpo = "¡Hola " + nombreCompleto + "!\n\n" +
+                    "Tu inscripción ha sido registrada exitosamente.\n\n" +
+                    "Detalles de tu inscripción:\n" +
+                    "📝 ID Inscripción: " + inscripcion.getIdInscripcion() + "\n" +
+                    "📅 Fecha Inicio: " + inscripcion.getFechaInicio() + "\n" +
+                    "📅 Fecha Fin: " + inscripcion.getFechaFin() + "\n" +
+                    "🏋️ Plan: " + plan.getNombre() + "\n\n" +
+                    "¡Bienvenido a nuestro gimnasio!";
 
-            // ✅ Aquí incluimos el ID de la inscripción (clave para registrar asistencia)
-            String qrContenido = "ID_INSCRIPCION:" + inscripcion.getIdInscripcion() + "\n" +
-                    "Cliente: " + nombreCompleto + "\n" +
-                    "Inicio: " + inscripcion.getFechaInicio() + "\n" +
-                    "Fin: " + inscripcion.getFechaFin() + "\n" +
-                    "Plan: " + plan.getNombre();
-
-            byte[] qrImage = qrService.generateQRCodeImage(qrContenido, 200, 200);
-
-            String asunto = "QR de Asistencia - GYM APP";
-            String cuerpo = "Adjunto encontrarás tu código QR para registrar tu asistencia en el gimnasio.\n\n" +
-                    "Fechas válidas:\n" +
-                    "📅 Inicio: " + inscripcion.getFechaInicio() + "\n" +
-                    "📅 Fin: " + inscripcion.getFechaFin() + "\n\n" +
-                    "Solo presenta este QR al ingresar al gimnasio.";
-
-            emailService.sendEmailWithQR(correoCliente, asunto, cuerpo, qrImage);
-
-
-            emailService.sendEmailWithQR(correoCliente, asunto, cuerpo, qrImage);
+            emailService.sendEmailWithQR(correoCliente, asunto, cuerpo);
 
         } catch (Exception e) {
-            throw new RuntimeException("No se pudo enviar el correo con QR: " + e.getMessage());
+            throw new RuntimeException("No se pudo enviar el correo de confirmación: " + e.getMessage());
         }
-
 
 
         // 10. Devolver respuesta
