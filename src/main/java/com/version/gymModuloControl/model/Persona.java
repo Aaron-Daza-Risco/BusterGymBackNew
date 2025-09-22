@@ -35,6 +35,9 @@ public class Persona {
 
     private String celular;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean estado = true;
+
     @OneToOne
     @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
