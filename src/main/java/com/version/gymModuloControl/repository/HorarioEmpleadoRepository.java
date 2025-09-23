@@ -1,20 +1,25 @@
 package com.version.gymModuloControl.repository;
 
 import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import com.version.gymModuloControl.dto.HorarioEmpleadoInfoDTO;
 import com.version.gymModuloControl.dto.HorarioInstructorDTO;
 import com.version.gymModuloControl.model.HorarioEmpleado;
 import com.version.gymModuloControl.model.TipoInstructor;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 public interface HorarioEmpleadoRepository extends JpaRepository<HorarioEmpleado, Integer> {
     @Query("SELECT new com.version.gymModuloControl.dto.HorarioEmpleadoInfoDTO(" +
             "h.idHorarioEmpleado, " +
             "p.nombre, " +
             "p.apellidos, " +
-            "r.nombre, " +
+            "CASE " +
+            "  WHEN e.tipoInstructor IS NOT NULL THEN 'ENTRENADOR' " +
+            "  ELSE COALESCE(r.nombre, 'EMPLEADO') " +
+            "END, " +
             "h.dia, " +
             "h.horaInicio, " +
             "h.horaFin, " +
@@ -23,9 +28,10 @@ public interface HorarioEmpleadoRepository extends JpaRepository<HorarioEmpleado
             "FROM HorarioEmpleado h " +
             "JOIN h.empleado e " +
             "JOIN e.persona p " +
-            "JOIN e.persona.usuario u " +
-            "JOIN u.usuarioRoles ur " +
-            "JOIN ur.rol r ")
+            "LEFT JOIN e.persona.usuario u " +
+            "LEFT JOIN u.usuarioRoles ur " +
+            "LEFT JOIN ur.rol r " +
+            "WHERE (e.tipoInstructor IS NOT NULL) OR (u IS NOT NULL)")
     List<HorarioEmpleadoInfoDTO> obtenerInfoHorariosEmpleados();
 
     @Query("SELECT h FROM HorarioEmpleado h " +

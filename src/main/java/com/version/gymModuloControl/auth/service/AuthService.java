@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -90,7 +91,6 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(loginRequest.getNombreUsuario(), loginRequest.getContrasena()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            String jwt = jwtUtils.generateJwtToken(authentication);
 
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             List<String> roles = userDetails.getAuthorities().stream()
@@ -104,16 +104,30 @@ public class AuthService {
             
             if (usuarioOpt.isPresent()) {
                 Usuario usuario = usuarioOpt.get();
-                usuario.setUltimoAcceso(LocalDateTime.now());
-                usuarioRepository.save(usuario);
                 userId = usuario.getId();
                 
-                // Verificar si el usuario tiene múltiples roles (empleado y cliente)
+                // Verificar todos los roles del usuario
                 List<UsuarioRol> rolesUsuario = usuarioRolRepository.findByUsuario_Id(userId);
                 todosLosRoles = rolesUsuario.stream()
                                             .map(ur -> "ROLE_" + ur.getRol().getNombre())
                                             .collect(Collectors.toList());
+                
+                // RESTRICCIÓN DE ACCESO: Solo permitir ADMIN y RECEPCIONISTA
+                boolean tieneAccesoPermitido = todosLosRoles.contains("ROLE_ADMIN") || 
+                                             todosLosRoles.contains("ROLE_RECEPCIONISTA");
+                
+                if (!tieneAccesoPermitido) {
+                    // Lanzar la misma excepción que si las credenciales fueran incorrectas
+                    // para no revelar información sobre la existencia de la cuenta
+                    throw new BadCredentialsException("Credenciales incorrectas");
+                }
+                
+                // Si llega aquí, el usuario tiene acceso permitido
+                usuario.setUltimoAcceso(LocalDateTime.now());
+                usuarioRepository.save(usuario);
             }
+
+            String jwt = jwtUtils.generateJwtToken(authentication);
 
             // Logging para propósitos de depuración
             System.out.println("Usuario ID: " + userId);
@@ -542,18 +556,19 @@ public class AuthService {
         List<UsuarioRol> rolesActuales = usuarioRolRepository.findByUsuario_Id(userId);
         boolean tieneRolCliente = rolesActuales.stream().anyMatch(ur -> ur.getRol().getNombre().equals("CLIENTE"));
 
-        // Si se cambia a CLIENTE, eliminar solo los roles de empleado (no el registro de empleado)
-        if (rolNombre.equals("CLIENTE")) {
-            List<UsuarioRol> rolesEmpleado = rolesActuales.stream()
+        // Primero, eliminar todos los roles de trabajo existentes
+        if (!rolNombre.equals("CLIENTE")) {
+            List<UsuarioRol> rolesTrabajoActuales = rolesActuales.stream()
                     .filter(ur -> ur.getRol().getNombre().equals("ADMIN") ||
                             ur.getRol().getNombre().equals("RECEPCIONISTA") ||
                             ur.getRol().getNombre().equals("ENTRENADOR"))
                     .collect(Collectors.toList());
-            usuario.getUsuarioRoles().removeAll(rolesEmpleado);
-            usuarioRolRepository.deleteAll(rolesEmpleado);
+            usuario.getUsuarioRoles().removeAll(rolesTrabajoActuales);
+            usuarioRolRepository.deleteAll(rolesTrabajoActuales);
+        }
 
-            // No eliminar el registro de empleado
-
+        // Si se cambia a CLIENTE
+        if (rolNombre.equals("CLIENTE")) {
             // Si no tiene rol cliente, asignarlo
             if (!tieneRolCliente) {
                 UsuarioRol nuevoRol = new UsuarioRol();
@@ -573,54 +588,33 @@ public class AuthService {
             return ResponseEntity.ok(response);
         }
 
-        // Si era cliente y se le asigna rol de empleado
-        if (tieneRolCliente && (rolNombre.equals("RECEPCIONISTA") || rolNombre.equals("ADMIN") || rolNombre.equals("ENTRENADOR"))) {
-            boolean yaTieneRol = rolesActuales.stream().anyMatch(ur -> ur.getRol().getNombre().equals(rolNombre));
-            if (!yaTieneRol) {
-                UsuarioRol nuevoRol = new UsuarioRol();
-                nuevoRol.setUsuario(usuario);
-                nuevoRol.setRol(rolOpt.get());
-                usuarioRolRepository.save(nuevoRol);
-                usuario.getUsuarioRoles().add(nuevoRol);
-            }
+        // Para roles de trabajo (ADMIN, RECEPCIONISTA, ENTRENADOR)
+        // Asignar el nuevo rol de trabajo
+        UsuarioRol nuevoRol = new UsuarioRol();
+        nuevoRol.setUsuario(usuario);
+        nuevoRol.setRol(rolOpt.get());
+        usuarioRolRepository.save(nuevoRol);
+        usuario.getUsuarioRoles().add(nuevoRol);
 
-            // Crear registro de empleado si no existe
-            Optional<Empleado> empleadoExistente = empleadoRepository.findByPersonaIdPersona(usuario.getPersona().getIdPersona());
-            if (empleadoExistente.isEmpty()) {
-                Empleado nuevoEmpleado = new Empleado();
-                nuevoEmpleado.setPersona(usuario.getPersona());
-                nuevoEmpleado.setEstado(true);
-                nuevoEmpleado.setFechaContratacion(LocalDate.now());
-                empleadoRepository.save(nuevoEmpleado);
-            }
-
-            usuarioRepository.save(usuario);
-            entityManager.flush();
-            entityManager.clear();
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("mensaje", "Rol de empleado asignado correctamente");
-            response.put("nuevoRol", rolNombre);
-            return ResponseEntity.ok(response);
+        // Crear o mantener el registro de empleado
+        if (empleadoRepository.findByPersonaIdPersona(usuario.getPersona().getIdPersona()).isEmpty()) {
+            Empleado nuevoEmpleado = new Empleado();
+            nuevoEmpleado.setPersona(usuario.getPersona());
+            nuevoEmpleado.setEstado(true);
+            nuevoEmpleado.setFechaContratacion(LocalDate.now());
+            empleadoRepository.save(nuevoEmpleado);
         }
 
-        // Otros cambios de rol (por ejemplo entre roles de empleado)
-        List<UsuarioRol> rolesAEliminar = rolesActuales.stream()
-                .filter(ur -> ur.getRol().getNombre().equals("ADMIN") ||
-                        ur.getRol().getNombre().equals("RECEPCIONISTA") ||
-                        ur.getRol().getNombre().equals("ENTRENADOR"))
-                .filter(ur -> !ur.getRol().getNombre().equals(rolNombre))
-                .collect(Collectors.toList());
-        usuario.getUsuarioRoles().removeAll(rolesAEliminar);
-        usuarioRolRepository.deleteAll(rolesAEliminar);
-
-        boolean yaTieneNuevoRol = rolesActuales.stream().anyMatch(ur -> ur.getRol().getNombre().equals(rolNombre));
-        if (!yaTieneNuevoRol) {
-            UsuarioRol nuevoRol = new UsuarioRol();
-            nuevoRol.setUsuario(usuario);
-            nuevoRol.setRol(rolOpt.get());
-            usuarioRolRepository.save(nuevoRol);
-            usuario.getUsuarioRoles().add(nuevoRol);
+        // Si no tiene rol de CLIENTE y debería tenerlo, mantenerlo
+        if (!tieneRolCliente) {
+            Optional<Rol> rolClienteOpt = rolRepository.findByNombre("CLIENTE");
+            if (rolClienteOpt.isPresent()) {
+                UsuarioRol rolCliente = new UsuarioRol();
+                rolCliente.setUsuario(usuario);
+                rolCliente.setRol(rolClienteOpt.get());
+                usuarioRolRepository.save(rolCliente);
+                usuario.getUsuarioRoles().add(rolCliente);
+            }
         }
 
         usuarioRepository.save(usuario);

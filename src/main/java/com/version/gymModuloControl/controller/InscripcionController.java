@@ -1,18 +1,27 @@
 package com.version.gymModuloControl.controller;
 
-import com.version.gymModuloControl.dto.*;
-import com.version.gymModuloControl.model.Empleado;
-import com.version.gymModuloControl.model.Inscripcion;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.version.gymModuloControl.dto.HorarioInstructorDTO;
+import com.version.gymModuloControl.dto.InscripcionConDetalleDTO;
+import com.version.gymModuloControl.dto.InscripcionRequestDTO;
+import com.version.gymModuloControl.dto.InscripcionResponseDTO;
+import com.version.gymModuloControl.dto.InstructorDisponibleDTO;
 import com.version.gymModuloControl.model.PagoInscripcion;
 import com.version.gymModuloControl.service.InscripcionService;
 import com.version.gymModuloControl.service.InstructorService;
 import com.version.gymModuloControl.service.PagoInscripcionService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/inscripciones")
@@ -86,6 +95,8 @@ public class InscripcionController {
         }
     }
 
+    // ENDPOINTS DE CLIENTE DESHABILITADOS - ACCESO RESTRINGIDO
+    /*
     @GetMapping("/planes-inscritos/{idCliente}")
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<List<PlanesInscritosDTO>> obtenerPlanesInscritosPorCliente(@PathVariable Integer idCliente) {
@@ -99,7 +110,5 @@ public class InscripcionController {
         List<PlanesInscritosDTO> historial = inscripcionService.obtenerHistorialPlanesPorCliente(idCliente);
         return ResponseEntity.ok(historial);
     }
-
-
-
+    */
 }

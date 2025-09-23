@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.version.gymModuloControl.auth.dto.ChangePasswordRequest;
 import com.version.gymModuloControl.auth.dto.JwtResponse;
 import com.version.gymModuloControl.auth.dto.LoginRequest;
 import com.version.gymModuloControl.auth.dto.RegisterRequest;
@@ -142,6 +141,8 @@ public class AuthController {
         }
     }
 
+    // ENDPOINTS DE CLIENTE DESHABILITADOS - ACCESO RESTRINGIDO
+    /*
     // Endpoint para obtener el perfil del cliente autenticado
     @GetMapping("/perfil")
     @PreAuthorize("hasRole('CLIENTE')")
@@ -155,6 +156,7 @@ public class AuthController {
     public ResponseEntity<?> cambiarContrasena(@RequestBody ChangePasswordRequest request, Authentication authentication) {
         return authService.cambiarContrasenaCliente(request, authentication);
     }
+    */
 
     @GetMapping("/usuarios/{id}/detalles")
     @PreAuthorize("hasRole('ADMIN')")

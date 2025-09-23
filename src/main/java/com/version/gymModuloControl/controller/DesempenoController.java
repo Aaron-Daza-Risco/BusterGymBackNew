@@ -49,6 +49,7 @@ public class DesempenoController {
     }
 
     // Registrar desempeño (solo entrenador premium asignado y cliente elegible)
+    /*
     @PreAuthorize("hasRole('ENTRENADOR')")
     @PostMapping("/registrar")
     public ResponseEntity<?> registrarDesempeno(@RequestBody Desempeno desempeno) {
@@ -112,8 +113,10 @@ public class DesempenoController {
             return ResponseEntity.status(409).body(ex.getMessage());
         }
     }
+    */
 
     // Actualizar desempeño (solo entrenador premium)
+    /*
     @PreAuthorize("hasRole('ENTRENADOR')")
     @PutMapping("/actualizar/{id}")
     public ResponseEntity<?> actualizarDesempeno(@PathVariable Integer id, @RequestBody Desempeno desempeno) {
@@ -153,6 +156,7 @@ public class DesempenoController {
         Desempeno actualizado = desempenoService.actualizarDesempeno(desempeno, username);
         return ResponseEntity.ok(toDTO(actualizado));
     }
+    */
 
     // Consultar desempeño por cliente (solo entrenador premium asignado o el cliente puede ver)
     @PreAuthorize("hasAnyRole('CLIENTE','ENTRENADOR','ADMIN')")
@@ -214,6 +218,7 @@ public class DesempenoController {
     }
 
     // Eliminar desempeño (solo entrenador premium asignado)
+    /*
     @PreAuthorize("hasRole('ENTRENADOR')")
     @DeleteMapping("/eliminar/{id}")
     public ResponseEntity<?> eliminarDesempeno(@PathVariable Integer id) {
@@ -244,6 +249,7 @@ public class DesempenoController {
         desempenoService.eliminarDesempeno(id);
         return ResponseEntity.ok("Desempeño eliminado correctamente.");
     }
+    */
 
     // Consultar historial de desempeños por cliente (incluye inscripciones anteriores)
     @PreAuthorize("hasAnyRole('CLIENTE','ENTRENADOR','ADMIN')")
